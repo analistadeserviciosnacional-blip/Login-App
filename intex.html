@@ -1,430 +1,172 @@
-/**
- * @license
- * SPDX-License-Identifier: Apache-2.0
- */
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-import React, { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'motion/react';
-import { Eye, EyeOff, Check, AlertCircle, Loader2, ExternalLink, RefreshCw } from 'lucide-react';
-import Papa from 'papaparse';
+<title>Jardines del Renacer</title>
 
-// --- CONFIGURATION ---
-const SHEET_CSV_URL = 'https://docs.google.com/spreadsheets/d/1TzVTkc7zcF1qd-Y9r9yGmv0KJOG7Asm81Ul442mTng/pub?gid=1544680003&single=true&output=csv';
-const APPSHEET_URL = 'https://www.appsheet.com/start/2e67cb5b-ec0c-4d03-984e-2eed84f55693';
+<style>
 
-// CORS 代理列表（按优先级尝试，增加容错）
-const CORS_PROXIES = [
-  (url: string) => `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
-  (url: string) => `https://corsproxy.io/?${encodeURIComponent(url)}`,
-  (url: string) => url, // 最后尝试直连
-];
-
-interface User {
-  usuario: string;
-  password?: string;
-  nombre: string;
-  rol: string;
-  regional: string;
-  activo: string;
+*{
+    margin:0;
+    padding:0;
+    box-sizing:border-box;
 }
 
-const Logo = ({ className, src }: { className?: string; src?: string | null }) => (
-  <img
-    src={src || "https://www.jardinesdelrenacer.com/wp-content/uploads/2021/04/Logo-Jardines-del-Renacer-300x300.png"}
-    alt="Logo Jardines del Renacer"
-    className={`${className} object-contain drop-shadow-sm`}
-    referrerPolicy="no-referrer"
-    onError={(e) => {
-      e.currentTarget.src = "https://placehold.co/200x200/1e4fa3/white?text=JR";
-    }}
-  />
-);
-
-/**
- * 带重试和 CORS 代理回退的 fetch
- */
-async function fetchWithFallback(url: string): Promise<string> {
-  let lastError: Error | null = null;
-
-  for (const proxyFn of CORS_PROXIES) {
-    const targetUrl = proxyFn(url);
-    try {
-      const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 12000); // 12秒超时
-
-      const response = await fetch(targetUrl, {
-        signal: controller.signal,
-        headers: {
-          'Accept': 'text/csv,text/plain,*/*',
-        },
-      });
-      clearTimeout(timeout);
-
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-      }
-
-      const text = await response.text();
-
-      // 验证返回内容确实是 CSV（不是 HTML 错误页）
-      if (text.trim().startsWith('<!DOCTYPE') || text.trim().startsWith('<html')) {
-        throw new Error('La respuesta no es un CSV válido (posiblemente página de error de Google).');
-      }
-
-      return text;
-    } catch (err) {
-      lastError = err instanceof Error ? err : new Error(String(err));
-      console.warn(`[Fetch] Falló con ${targetUrl.substring(0, 60)}... → ${lastError.message}`);
-      // 继续尝试下一个代理
-    }
-  }
-
-  throw lastError || new Error('Todos los métodos de conexión fallaron.');
+body{
+    font-family:Arial, Helvetica, sans-serif;
+    background:linear-gradient(135deg,#0b3b8c,#2563eb);
+    height:100vh;
+    display:flex;
+    justify-content:center;
+    align-items:center;
 }
 
-export default function App() {
-  const [username, setUsername] = useState('');
-  const [password, setPassword] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
-  const [rememberMe, setRememberMe] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState(false);
-  const [userData, setUserData] = useState<User | null>(null);
-  const [customLogo, setCustomLogo] = useState<string | null>(null);
-  const [retryCount, setRetryCount] = useState(0);
+.login-container{
+    width:380px;
+    background:white;
+    border-radius:20px;
+    padding:40px;
+    box-shadow:0 10px 30px rgba(0,0,0,0.25);
+    text-align:center;
+}
 
-  useEffect(() => {
-    const savedLogo = localStorage.getItem('jr_custom_logo');
-    if (savedLogo) setCustomLogo(savedLogo);
+.logo{
+    width:120px;
+    margin-bottom:20px;
+}
 
-    const savedUser = localStorage.getItem('jr_user') || sessionStorage.getItem('jr_user');
-    if (savedUser) {
-      try {
-        const u = JSON.parse(savedUser);
-        setUserData(u);
-        setSuccess(true);
-      } catch (e) {
-        console.error('Error parsing saved session', e);
-      }
-    }
-  }, []);
+h1{
+    color:#0b3b8c;
+    margin-bottom:10px;
+    font-size:28px;
+}
 
-  const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        const base64 = reader.result as string;
-        setCustomLogo(base64);
-        localStorage.setItem('jr_custom_logo', base64);
-      };
-      reader.readAsDataURL(file);
-    }
-  };
+.subtitulo{
+    color:#6b7280;
+    margin-bottom:30px;
+    font-size:14px;
+}
 
-  const handleLogin = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!username || !password) {
-      setError('Por favor completa usuario y contraseña.');
-      return;
-    }
+.input-group{
+    margin-bottom:18px;
+    text-align:left;
+}
 
-    setError(null);
-    setLoading(true);
+label{
+    display:block;
+    margin-bottom:8px;
+    color:#1e3a8a;
+    font-weight:bold;
+    font-size:14px;
+}
 
-    try {
-      const csvText = await fetchWithFallback(SHEET_CSV_URL);
-      const result = Papa.parse<User>(csvText, { header: true, skipEmptyLines: true });
+input{
+    width:100%;
+    padding:14px;
+    border:1px solid #cbd5e1;
+    border-radius:10px;
+    font-size:15px;
+    transition:0.3s;
+}
 
-      if (result.errors.length > 0) {
-        console.warn('[CSV Parse] Warnings:', result.errors);
-      }
+input:focus{
+    outline:none;
+    border-color:#2563eb;
+    box-shadow:0 0 5px rgba(37,99,235,0.4);
+}
 
-      const users = result.data.map(u => {
-        const normalized: any = {};
-        Object.keys(u).forEach(key => {
-          normalized[key.trim().toLowerCase()] = String((u as any)[key] ?? '').trim();
-        });
-        return normalized as User;
-      });
+button{
+    width:100%;
+    padding:14px;
+    background:#0b3b8c;
+    color:white;
+    border:none;
+    border-radius:10px;
+    font-size:16px;
+    cursor:pointer;
+    transition:0.3s;
+    margin-top:10px;
+}
 
-      const match = users.find(u =>
-        u.usuario?.toLowerCase() === username.toLowerCase() &&
-        u.password === password &&
-        u.activo?.toUpperCase() === 'SI'
-      );
+button:hover{
+    background:#2563eb;
+}
 
-      if (!match) {
-        setError('Usuario o contraseña incorrectos, o cuenta inactiva.');
-        setLoading(false);
-        return;
-      }
+.error{
+    margin-top:15px;
+    color:red;
+    font-size:14px;
+}
 
-      const storage = rememberMe ? localStorage : sessionStorage;
-      storage.setItem('jr_user', JSON.stringify(match));
+.footer{
+    margin-top:25px;
+    font-size:12px;
+    color:#6b7280;
+}
 
-      setUserData(match);
-      setSuccess(true);
-      setLoading(false);
+</style>
+</head>
 
-      setTimeout(() => {
-        window.location.href = APPSHEET_URL;
-      }, 2500);
+<body>
 
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Error desconocido';
-      setError(`Error al conectar: ${msg}`);
-      setLoading(false);
-    }
-  };
+<div class="login-container">
 
-  const handleRetry = () => {
-    setError(null);
-    setRetryCount(prev => prev + 1);
-  };
+    <!-- LOGO -->
+    <img src="LOGO-OFICIAL-JARDINES-15-278x300.png" class="logo">
 
-  return (
-    <div className="flex items-center justify-center min-h-screen p-4 bg-slate-50">
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.6, ease: [0.22, 0.68, 0, 1.2] }}
-        className="flex flex-col md:flex-row w-full max-w-[920px] min-h-[540px] bg-white rounded-[24px] overflow-hidden shadow-[0_32px_120px_rgba(30,79,163,0.12),0_4px_16px_rgba(0,0,0,0.02)] border border-slate-200 relative"
-      >
-        {/* Left Panel */}
-        <div className="hidden md:flex md:w-[45%] bg-jr-dark p-12 flex-col items-center justify-center relative overflow-hidden text-center">
-          <div className="absolute w-[500px] h-[500px] rounded-full border border-white/5 -bottom-[150px] -right-[150px] bg-white/5 blur-3xl" />
-          <div className="absolute w-[300px] h-[300px] rounded-full border border-white/5 -top-[100px] -left-[100px] bg-white/5 blur-2xl" />
-          <div className="absolute inset-0 z-0 bg-[radial-gradient(ellipse_80%_60%_at_50%_0%,rgba(255,255,255,0.08)_0%,transparent_70%)] pointer-events-none" />
+    <h1>Jardines del Renacer</h1>
 
-          <div className="relative z-10 flex flex-col items-center">
-            {success && userData?.rol?.toLowerCase().includes('admin') ? (
-              <label className="cursor-pointer group relative">
-                <input type="file" accept="image/*" className="hidden" onChange={handleLogoUpload} />
-                <motion.div
-                  initial={{ opacity: 0, scale: 0.9 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  whileHover={{ scale: 1.05 }}
-                  transition={{ delay: 0.2, duration: 0.8, type: "spring", stiffness: 260, damping: 20 }}
-                  className="bg-white p-5 rounded-full mb-8 shadow-2xl border border-white/20 relative"
-                >
-                  <Logo className="w-[110px] h-[110px]" src={customLogo} />
-                  <div className="absolute inset-0 rounded-full bg-jr-dark/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                    <span className="text-white text-[10px] font-bold uppercase tracking-wider">Cambiar Logo</span>
-                  </div>
-                </motion.div>
-              </label>
-            ) : (
-              <motion.div
-                initial={{ opacity: 0, scale: 0.9 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ delay: 0.2, duration: 0.8 }}
-                className="bg-white p-5 rounded-full mb-8 shadow-2xl border border-white/20"
-              >
-                <Logo className="w-[110px] h-[110px]" src={customLogo} />
-              </motion.div>
-            )}
-
-            <h2 className="font-serif text-3xl text-white mb-2 tracking-wide font-medium drop-shadow-sm">
-              Jardines del Renacer
-            </h2>
-            <p className="text-[10px] uppercase tracking-[6px] text-white/60 font-bold mb-8">
-              Prestación de Servicios J.R
-            </p>
-
-            <div className="w-12 h-[2px] bg-white/30 mx-auto mb-8 rounded-full" />
-
-            <p className="font-serif italic text-base text-white/50 leading-relaxed max-w-[280px] font-light">
-              "Acompañamos a las familias con dignidad y respeto."
-            </p>
-          </div>
-        </div>
-
-        {/* Right Panel */}
-        <div className="flex-1 p-8 md:p-14 flex flex-col justify-center bg-white">
-          <AnimatePresence mode="wait">
-            {!success ? (
-              <motion.div
-                key={`login-${retryCount}`}
-                initial={{ opacity: 0, x: 20 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -20 }}
-                transition={{ duration: 0.4 }}
-              >
-                <div className="mb-10">
-                  <h1 className="font-serif text-[2.5rem] leading-none mb-2 text-slate-900">
-                    Bienvenido<span className="text-jr-dark">.</span>
-                  </h1>
-                  <p className="text-sm font-light text-slate-400 tracking-wide">
-                    Ingresa tus credenciales para acceder al sistema
-                  </p>
-                </div>
-
-                {error && (
-                  <motion.div
-                    initial={{ opacity: 0, scale: 0.98 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    className="flex flex-col gap-3 p-4 mb-8 text-sm font-light rounded-xl bg-red-50 border border-red-100 text-red-600"
-                  >
-                    <div className="flex items-start gap-3">
-                      <AlertCircle size={18} className="mt-0.5 shrink-0" />
-                      <span>{error}</span>
-                    </div>
-                    {/* 诊断信息与重试按钮 */}
-                    <div className="flex items-center justify-between pl-7">
-                      <span className="text-[10px] text-red-400 font-medium">
-                        Verifica que el Sheet esté publicado públicamente
-                      </span>
-                      <button
-                        type="button"
-                        onClick={handleRetry}
-                        className="flex items-center gap-1.5 text-[11px] font-bold text-red-500 hover:text-red-700 transition-colors"
-                      >
-                        <RefreshCw size={12} />
-                        Reintentar
-                      </button>
-                    </div>
-                  </motion.div>
-                )}
-
-                <form onSubmit={handleLogin} className="space-y-6">
-                  <div className="space-y-2">
-                    <label className="block text-[10px] font-bold tracking-[2px] uppercase text-slate-400">
-                      Usuario
-                    </label>
-                    <input
-                      type="text"
-                      id="inp-user"
-                      value={username}
-                      onChange={(e) => setUsername(e.target.value)}
-                      className="w-full h-12 bg-slate-50 border border-slate-200 rounded-xl px-4 text-sm font-light outline-none focus:ring-4 focus:ring-jr-dark/5 focus:border-jr-dark focus:bg-white transition-all placeholder:text-slate-300"
-                      placeholder="usuario"
-                      autoComplete="username"
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <label className="block text-[10px] font-bold tracking-[2px] uppercase text-slate-400">
-                      Contraseña
-                    </label>
-                    <div className="relative">
-                      <input
-                        type={showPassword ? "text" : "password"}
-                        id="inp-pass"
-                        value={password}
-                        onChange={(e) => setPassword(e.target.value)}
-                        className="w-full h-12 bg-slate-50 border border-slate-200 rounded-xl px-4 text-sm font-light outline-none focus:ring-4 focus:ring-jr-dark/5 focus:border-jr-dark focus:bg-white transition-all pr-12 placeholder:text-slate-300"
-                        placeholder="••••••••"
-                        autoComplete="current-password"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setShowPassword(!showPassword)}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 p-2 text-slate-300 hover:text-jr-dark transition-colors"
-                      >
-                        {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-                      </button>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center justify-between py-1">
-                    <label className="flex items-center gap-3 text-sm font-light text-slate-400 cursor-pointer select-none">
-                      <input
-                        type="checkbox"
-                        checked={rememberMe}
-                        onChange={(e) => setRememberMe(e.target.checked)}
-                        className="w-4 h-4 rounded-md border-slate-300 text-jr-dark focus:ring-jr-dark accent-jr-dark cursor-pointer"
-                      />
-                      Recordarme
-                    </label>
-                    <button type="button" className="text-sm font-medium text-jr-dark hover:underline decoration-1 underline-offset-4 transition-all">
-                      ¿Olvidaste tu contraseña?
-                    </button>
-                  </div>
-
-                  <button
-                    disabled={loading}
-                    className="w-full h-14 bg-jr-dark text-white rounded-xl flex items-center justify-center gap-4 text-sm font-bold uppercase tracking-[2px] hover:bg-jr-mid transition-all active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed shadow-xl shadow-jr-dark/20 mt-4"
-                  >
-                    {loading ? (
-                      <>
-                        <Loader2 className="animate-spin" size={20} />
-                        Verificando…
-                      </>
-                    ) : (
-                      'Ingresar al Portal'
-                    )}
-                  </button>
-                </form>
-
-                <div className="mt-12 flex flex-col items-center gap-4">
-                  <div className="w-12 h-[1px] bg-slate-100" />
-                  <p className="text-center text-[10px] font-medium text-slate-300 tracking-widest uppercase">
-                    Acceso Restringido &mdash; &copy; 2026 JR
-                  </p>
-                </div>
-              </motion.div>
-            ) : (
-              <motion.div
-                key="welcome-screen"
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="flex flex-col items-center justify-center text-center space-y-6"
-              >
-                <motion.div
-                  initial={{ scale: 0.8, opacity: 0 }}
-                  animate={{ scale: 1, opacity: 1 }}
-                  transition={{ delay: 0.2 }}
-                  className="w-20 h-20 rounded-full bg-slate-50 border border-slate-200 flex items-center justify-center overflow-hidden shadow-sm mb-2"
-                >
-                  <Logo className="w-14 h-14" src={customLogo} />
-                </motion.div>
-
-                <div>
-                  <h2 className="font-serif text-3xl text-slate-900 mb-2 font-medium">
-                    {userData?.nombre || 'Bienvenido'}
-                  </h2>
-                  <p className="text-[11px] font-bold tracking-[3px] uppercase text-slate-400">
-                    {userData?.rol || 'Usuario'}
-                  </p>
-                </div>
-
-                {userData?.regional && (
-                  <div className="flex items-center gap-2 px-4 py-1.5 bg-slate-50 rounded-full border border-slate-100">
-                    <span className="text-[0.82rem] font-medium text-jr-dark">
-                      Sede Regional: {userData.regional}
-                    </span>
-                  </div>
-                )}
-
-                <div className="pt-8 flex flex-col items-center gap-4 w-full">
-                  <p className="text-xs text-slate-400 font-light italic">Estableciendo conexión segura...</p>
-                  <a
-                    href={APPSHEET_URL}
-                    className="flex items-center justify-center gap-3 w-full max-w-[280px] py-4 bg-jr-dark text-white rounded-xl text-sm font-bold uppercase tracking-[2px] hover:bg-jr-mid transition-all shadow-xl shadow-jr-dark/20"
-                  >
-                    Abrir Aplicación
-                    <ExternalLink size={18} />
-                  </a>
-
-                  <button
-                    onClick={() => {
-                      localStorage.removeItem('jr_user');
-                      sessionStorage.removeItem('jr_user');
-                      setSuccess(false);
-                      setUserData(null);
-                    }}
-                    className="text-[11px] text-slate-300 hover:text-red-500 font-bold transition-colors uppercase tracking-[2px] mt-6"
-                  >
-                    Finalizar Sesión
-                  </button>
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </div>
-      </motion.div>
+    <div class="subtitulo">
+        Sistema de Acceso Administrativo
     </div>
-  );
+
+    <div class="input-group">
+        <label>Usuario</label>
+        <input type="text" id="usuario" placeholder="Ingrese usuario">
+    </div>
+
+    <div class="input-group">
+        <label>Contraseña</label>
+        <input type="password" id="clave" placeholder="Ingrese contraseña">
+    </div>
+
+    <button onclick="login()">
+        Ingresar
+    </button>
+
+    <div class="error" id="error"></div>
+
+    <div class="footer">
+        © 2026 Jardines del Renacer
+    </div>
+
+</div>
+
+<script>
+
+function login(){
+
+    let usuario = document.getElementById("usuario").value;
+    let clave = document.getElementById("clave").value;
+
+    // VALIDACIÓN SIMPLE
+    if(usuario === "admin" && clave === "1234"){
+
+        // CAMBIAR POR TU LINK DE APPSHEET
+        window.location.href =
+        "https://www.appsheet.com/start/TU_APP_ID";
+
+    }else{
+
+        document.getElementById("error").innerHTML =
+        "Usuario o contraseña incorrectos";
+
+    }
 }
+
+</script>
+
+</body>
+</html>
