@@ -1,430 +1,755 @@
-/**
- * @license
- * SPDX-License-Identifier: Apache-2.0
- */
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Jardines del Renacer — Acceso</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;1,300;1,400&family=Jost:wght@300;400;500;700&display=swap" rel="stylesheet"/>
 
-import React, { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'motion/react';
-import { Eye, EyeOff, Check, AlertCircle, Loader2, ExternalLink, RefreshCw } from 'lucide-react';
-import Papa from 'papaparse';
+  <!-- Papa Parse para CSV -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
 
-// --- CONFIGURATION ---
+  <style>
+    /* ── RESET ── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    /* ── VARIABLES (Paleta Azul y Blanco) ── */
+    :root {
+      --jr-dark:   #0d3d6f; /* Azul oscuro principal */
+      --jr-mid:    #1e4fa3; /* Azul medio */
+      --jr-accent: #4299e1; /* Azul acento brillante */
+      --jr-light:  #eef2f7; /* Gris azulado muy claro */
+      --transition: 0.25s ease;
+    }
+
+    /* ── BASE ── */
+    html, body {
+      min-height: 100vh;
+      font-family: 'Jost', sans-serif;
+      background: #f1f5f9;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 1rem;
+    }
+
+    body::before {
+      content: '';
+      position: fixed; inset: 0;
+      background:
+        radial-gradient(ellipse 80% 60% at 15% 85%, rgba(30,79,163,0.08) 0%, transparent 60%),
+        radial-gradient(ellipse 60% 50% at 85% 15%, rgba(66,153,225,0.09) 0%, transparent 55%);
+      pointer-events: none;
+    }
+
+    /* ── CARD ── */
+    .card {
+      display: flex;
+      width: min(920px, 100%);
+      min-height: 560px;
+      border-radius: 24px;
+      overflow: hidden;
+      box-shadow:
+        0 32px 120px rgba(30,79,163,0.12),
+        0 4px 16px rgba(0,0,0,0.06);
+      border: 1px solid #e2e8f0;
+      animation: fadeUp 0.6s cubic-bezier(.22,.68,0,1.2) both;
+      position: relative;
+    }
+
+    @keyframes fadeUp {
+      from { opacity:0; transform:translateY(24px); }
+      to   { opacity:1; transform:translateY(0); }
+    }
+
+    /* ── LEFT PANEL ── */
+    .panel-left {
+      width: 45%;
+      background: var(--jr-dark);
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      padding: 3rem;
+      position: relative; overflow: hidden;
+      text-align: center;
+    }
+
+    .panel-left::before {
+      content:''; position:absolute; inset:0;
+      background:
+        radial-gradient(ellipse 70% 50% at 20% 80%, rgba(66,153,225,0.15) 0%, transparent 60%),
+        radial-gradient(ellipse 60% 40% at 80% 10%, rgba(30,79,163,0.2) 0%, transparent 55%);
+    }
+
+    /* decorative rings */
+    .ring {
+      position:absolute; border-radius:50%;
+      background: rgba(255,255,255,0.03);
+      backdrop-filter: blur(40px);
+    }
+    .ring.r1 { width:500px; height:500px; bottom:-150px; right:-150px; border:1px solid rgba(255,255,255,0.05); }
+    .ring.r2 { width:200px; height:200px; top:-60px; left:-60px; }
+
+    .left-content { position:relative; z-index:2; display:flex; flex-direction:column; align-items:center; }
+
+    /* logo */
+    .logo-container {
+      position: relative;
+      margin-bottom: 1rem;
+    }
+    .logo-img {
+      width: 100px; height: 100px;
+      object-fit: contain;
+      border-radius: 50%;
+      border: 2px solid rgba(255,255,255,0.15);
+      background: rgba(255,255,255,0.08);
+      padding: 8px;
+      drop-shadow: 0 4px 20px rgba(30,79,163,0.4);
+      animation: logoIn 0.8s 0.3s cubic-bezier(.22,.68,0,1.2) both;
+    }
+    .btn-upload-logo {
+      font-size: 0.6rem;
+      font-weight: 700;
+      color: rgba(255,255,255,0.6);
+      background: rgba(255,255,255,0.1);
+      border: none;
+      border-radius: 99px;
+      padding: 5px 12px;
+      margin-top: 1rem;
+      cursor: pointer;
+      transition: all var(--transition);
+      letter-spacing: 1px;
+    }
+    .btn-upload-logo:hover {
+      background: rgba(255,255,255,0.2);
+      color: #fff;
+    }
+    #logo-uploader { display: none; } /* Ocultar el input file real */
+
+    @keyframes logoIn {
+      from { opacity:0; transform:scale(0.7); }
+      to   { opacity:1; transform:scale(1); }
+    }
+
+    .brand-name {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 1.7rem; font-weight: 500;
+      color: #fff; line-height: 1.2;
+      margin-bottom: 0.5rem;
+      letter-spacing: 0.3px;
+      text-shadow: 0 2px 12px rgba(0,0,0,0.2);
+    }
+
+    .brand-sub {
+      font-size: 0.6rem; font-weight: 700;
+      letter-spacing: 6px; text-transform: uppercase;
+      color: rgba(255,255,255,0.55);
+      margin-bottom: 2rem;
+    }
+
+    .divider-line {
+      width: 48px; height: 2px;
+      background: rgba(255,255,255,0.25);
+      border-radius: 99px;
+      margin: 0 auto 2rem;
+    }
+
+    .brand-quote {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 1rem; font-style: italic; font-weight: 300;
+      color: rgba(255,255,255,0.45);
+      line-height: 1.8; max-width: 260px;
+    }
+
+    /* ── RIGHT PANEL ── */
+    .panel-right {
+      flex: 1; background: #fff;
+      display: flex; flex-direction: column; justify-content: center;
+      padding: 3.5rem 3.5rem;
+    }
+
+    /* ── SCREENS ── */
+    .screen { animation: slideIn 0.4s cubic-bezier(.22,.68,0,1.1) both; }
+    .screen.hidden { display: none !important; }
+
+    @keyframes slideIn {
+      from { opacity:0; transform:translateX(20px); }
+      to   { opacity:1; transform:translateX(0); }
+    }
+
+    /* ── LOGIN SCREEN ── */
+    .greeting {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 2.5rem; font-weight: 400;
+      color: #0f172a; line-height: 1; margin-bottom: 0.5rem;
+    }
+    .greeting em { color: var(--jr-dark); font-style: normal; }
+
+    .sub-text {
+      font-size: 0.82rem; font-weight: 300;
+      color: #94a3b8; letter-spacing: 0.3px;
+      margin-bottom: 2.5rem;
+    }
+
+    /* alerts */
+    .alert {
+      border-radius: 12px; font-size: 0.82rem; font-weight: 300;
+      padding: 12px 16px; margin-bottom: 1.5rem;
+      display: none; animation: fadeIn 0.3s ease;
+    }
+    @keyframes fadeIn { from{opacity:0;transform:scale(.98)} to{opacity:1;transform:scale(1)} }
+
+    .alert.error {
+      background:#fef2f2; border:1px solid #fecaca; color:#dc2626;
+      display: flex; flex-direction: column; gap: 8px;
+    }
+    .alert.info  { background:#eff6ff; border:1px solid #bfdbfe; color:#1d4ed8; display:flex; align-items:center; gap:8px; }
+
+    .alert-row { display:flex; align-items:flex-start; gap:10px; }
+    .alert-icon { flex-shrink:0; margin-top:1px; }
+    .alert-footer { display:flex; align-items:center; justify-content:space-between; padding-left:28px; }
+    .alert-hint { font-size:0.65rem; color:#f87171; font-weight:500; }
+
+    .btn-retry {
+      display:flex; align-items:center; gap:5px;
+      font-size:0.7rem; font-weight:700;
+      color:#ef4444; background:none; border:none; cursor:pointer;
+      transition: color var(--transition);
+    }
+    .btn-retry:hover { color:#b91c1c; }
+    .btn-retry svg { transition: transform 0.4s; }
+    .btn-retry:hover svg { transform: rotate(180deg); }
+
+    /* fields */
+    .field { margin-bottom: 1.4rem; }
+
+    .field label {
+      display:block; font-size:0.65rem; font-weight:700;
+      letter-spacing:2px; text-transform:uppercase;
+      color:#94a3b8; margin-bottom:8px;
+    }
+
+    .input-wrap { position:relative; }
+
+    .field input[type="text"],
+    .field input[type="password"] {
+      width:100%; height:48px;
+      background:#f8fafc; border:1px solid #e2e8f0;
+      border-radius:12px; padding:0 16px;
+      font-family:'Jost',sans-serif; font-size:0.88rem; font-weight:300;
+      color:#0f172a; outline:none;
+      transition: border-color var(--transition), box-shadow var(--transition), background var(--transition);
+    }
+
+    .field input:focus {
+      border-color: var(--jr-dark);
+      background: #fff;
+      box-shadow: 0 0 0 4px rgba(13,61,111,0.08);
+    }
+
+    .field input::placeholder { color:#cbd5e1; }
+    .field input.has-btn { padding-right:48px; }
+
+    .eye-btn {
+      position:absolute; right:12px; top:50%; transform:translateY(-50%);
+      background:none; border:none; cursor:pointer;
+      color:#cbd5e1; padding:6px;
+      display:flex; align-items:center; justify-content:center;
+      transition:color var(--transition);
+    }
+    .eye-btn:hover { color: var(--jr-dark); }
+
+    /* row options */
+    .row-opts {
+      display:flex; align-items:center; justify-content:space-between;
+      margin-bottom:2rem; padding: 4px 0;
+    }
+
+    .check-label {
+      display:flex; align-items:center; gap:10px;
+      font-size:0.82rem; font-weight:300; color:#94a3b8;
+      cursor:pointer; user-select:none;
+    }
+    .check-label input[type="checkbox"] {
+      width:16px; height:16px; border-radius:5px;
+      accent-color: var(--jr-dark); cursor:pointer;
+    }
+
+    .forgot-link {
+      font-size:0.82rem; font-weight:500;
+      color: var(--jr-dark); text-decoration:none;
+      transition:opacity var(--transition);
+    }
+    .forgot-link:hover { opacity:0.7; text-decoration:underline; text-underline-offset:3px; }
+
+    /* submit button */
+    .btn-login {
+      width:100%; height:56px;
+      background: var(--jr-dark); color:#fff;
+      border:none; border-radius:12px;
+      font-family:'Jost',sans-serif; font-size:0.8rem; font-weight:700;
+      letter-spacing:2px; text-transform:uppercase;
+      cursor:pointer; display:flex; align-items:center; justify-content:center; gap:12px;
+      transition:background var(--transition), transform 0.1s;
+      box-shadow: 0 12px 40px rgba(13,61,111,0.25);
+      margin-bottom: 2.5rem;
+    }
+    .btn-login:hover:not(:disabled) { background: var(--jr-mid); }
+    .btn-login:active:not(:disabled) { transform:scale(0.99); }
+    .btn-login:disabled { opacity:0.6; cursor:not-allowed; }
+
+    /* spinner */
+    .spinner-ring {
+      width:18px; height:18px;
+      border:2.5px solid rgba(255,255,255,0.25);
+      border-top-color:#fff;
+      border-radius:50%;
+      animation:spin 0.7s linear infinite;
+      display:none;
+    }
+    @keyframes spin { to{transform:rotate(360deg)} }
+
+    .login-footer {
+      display:flex; flex-direction:column; align-items:center; gap:12px;
+    }
+    .footer-divider { width:48px; height:1px; background:#f1f5f9; }
+    .footer-text {
+      font-size:0.65rem; font-weight:500; letter-spacing:3px;
+      text-transform:uppercase; color:#cbd5e1; text-align:center;
+    }
+
+    /* ── WELCOME SCREEN ── */
+    #welcome-screen {
+      display:flex; flex-direction:column;
+      align-items:center; justify-content:center; text-align:center;
+      gap:1.2rem;
+      animation: wIn 0.5s cubic-bezier(.22,.68,0,1.2) both;
+    }
+
+    @keyframes wIn {
+      from { opacity:0; transform:translateY(20px); }
+      to   { opacity:1; transform:translateY(0); }
+    }
+
+    .welcome-avatar {
+      width:80px; height:80px; border-radius:50%;
+      background:#f8fafc; border:1px solid #e2e8f0;
+      display:flex; align-items:center; justify-content:center;
+      overflow:hidden; box-shadow:0 4px 20px rgba(0,0,0,0.06);
+      margin-bottom: 0.5rem;
+    }
+
+    .welcome-avatar img {
+      width:60px; height:60px; object-fit:contain;
+    }
+
+    .welcome-name {
+      font-family:'Cormorant Garamond',serif;
+      font-size:2rem; font-weight:500; color:#0f172a;
+    }
+
+    .welcome-role {
+      font-size:0.68rem; font-weight:700;
+      letter-spacing:3px; text-transform:uppercase; color:#94a3b8;
+    }
+
+    .welcome-regional {
+      display:flex; align-items:center; gap:8px;
+      padding:6px 16px;
+      background:#f8fafc; border:1px solid #e2e8f0;
+      border-radius:99px;
+      font-size:0.8rem; font-weight:500; color: var(--jr-dark);
+    }
+
+    .welcome-conn {
+      font-size:0.75rem; font-weight:300; font-style:italic; color:#94a3b8;
+    }
+
+    .btn-open-app {
+      display:flex; align-items:center; justify-content:center; gap:10px;
+      padding:14px 32px;
+      background: var(--jr-dark); color:#fff;
+      border-radius:12px; text-decoration:none;
+      font-family:'Jost',sans-serif; font-size:0.8rem; font-weight:700;
+      letter-spacing:2px; text-transform:uppercase;
+      transition:background var(--transition);
+      box-shadow: 0 12px 40px rgba(13,61,111,0.25);
+      width:100%; max-width:280px;
+      margin-top:0.5rem;
+    }
+    .btn-open-app:hover { background: var(--jr-mid); }
+
+    .btn-logout {
+      font-size:0.65rem; font-weight:700;
+      letter-spacing:2px; text-transform:uppercase;
+      color:#cbd5e1; background:none; border:none; cursor:pointer;
+      transition:color var(--transition); margin-top:1rem;
+    }
+    .btn-logout:hover { color:#ef4444; }
+
+    /* ── RESPONSIVE ── */
+    @media (max-width:680px) {
+      .panel-left { display:none; }
+      .panel-right { padding:2.5rem 1.8rem; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="card">
+
+  <!-- ══ PANEL IZQUIERDO ══ -->
+  <div class="panel-left">
+    <div class="ring r1"></div>
+    <div class="ring r2"></div>
+
+    <div class="left-content">
+      <div class="logo-container">
+        <img
+          class="logo-img"
+          id="logo-img"
+          src="https://placehold.co/200x200/FFFFFF/0d3d6f?text=LOGO"
+          alt="Logo Jardines del Renacer"
+          referrerpolicy="no-referrer"
+        />
+      </div>
+
+      <!-- Input para cargar logo -->
+      <label for="logo-uploader" class="btn-upload-logo">Cambiar Logo</label>
+      <input type="file" id="logo-uploader" accept="image/*"/>
+
+      <h2 class="brand-name">Jardines del Renacer</h2>
+      <p class="brand-sub">Prestación de Servicios J.R</p>
+      <div class="divider-line"></div>
+      <p class="brand-quote">"Acompañamos a las familias con dignidad y respeto."</p>
+    </div>
+  </div>
+
+  <!-- ══ PANEL DERECHO ══ -->
+  <div class="panel-right">
+
+    <!-- LOGIN -->
+    <div id="login-screen" class="screen">
+
+      <h1 class="greeting">Bienvenido<em>.</em></h1>
+      <p class="sub-text">Ingresa tus credenciales para acceder al sistema</p>
+
+      <!-- Alerta error -->
+      <div class="alert error" id="alert-error">
+        <div class="alert-row">
+          <span class="alert-icon">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+          </span>
+          <span id="error-text"></span>
+        </div>
+        <div class="alert-footer">
+          <span class="alert-hint">Verifica que el Sheet esté publicado públicamente</span>
+          <button class="btn-retry" id="btn-retry" type="button">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+            Reintentar
+          </button>
+        </div>
+      </div>
+
+      <!-- Alerta info -->
+      <div class="alert info" id="alert-info">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+        <span id="info-text">Verificando credenciales…</span>
+      </div>
+
+      <!-- Formulario -->
+      <div class="field">
+        <label for="inp-user">Usuario</label>
+        <input type="text" id="inp-user" placeholder="usuario" autocomplete="username"/>
+      </div>
+
+      <div class="field">
+        <label for="inp-pass">Contraseña</label>
+        <div class="input-wrap">
+          <input type="password" id="inp-pass" class="has-btn" placeholder="••••••••" autocomplete="current-password"/>
+          <button class="eye-btn" id="eye-btn" type="button" aria-label="Mostrar contraseña">
+            <svg id="eye-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+              <circle cx="12" cy="12" r="3"/>
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      <div class="row-opts">
+        <label class="check-label">
+          <input type="checkbox" id="remember"/> Recordarme
+        </label>
+        <a href="#" class="forgot-link">¿Olvidaste tu contraseña?</a>
+      </div>
+
+      <button class="btn-login" id="btn-login" type="button">
+        <div class="spinner-ring" id="spinner"></div>
+        <span id="btn-text">Ingresar al Portal</span>
+      </button>
+
+      <div class="login-footer">
+        <div class="footer-divider"></div>
+        <p class="footer-text">Acceso Restringido &mdash; &copy; 2026 JR</p>
+      </div>
+    </div>
+
+    <!-- BIENVENIDA -->
+    <div id="welcome-screen" class="screen hidden">
+      <div class="welcome-avatar">
+        <img id="w-logo" src="https://placehold.co/60x60/FFFFFF/0d3d6f?text=LOGO"
+             alt="JR" referrerpolicy="no-referrer" />
+      </div>
+
+      <p class="welcome-name"     id="w-name">—</p>
+      <p class="welcome-role"     id="w-role">—</p>
+      <div class="welcome-regional" id="w-regional" style="display:none">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+        <span id="w-regional-text"></span>
+      </div>
+
+      <p class="welcome-conn">Estableciendo conexión segura…</p>
+
+      <a class="btn-open-app" id="btn-open-app" href="#" target="_blank">
+        Abrir Aplicación
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+      </a>
+
+      <button class="btn-logout" id="btn-logout" type="button">Finalizar Sesión</button>
+    </div>
+
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════════════════
+//  🔧 CONFIGURACIÓN
+// ═══════════════════════════════════════════════════════════════
 const SHEET_CSV_URL = 'https://docs.google.com/spreadsheets/d/1TzVTkc7zcF1qd-Y9r9yGmv0KJOG7Asm81Ul442mTng/pub?gid=1544680003&single=true&output=csv';
-const APPSHEET_URL = 'https://www.appsheet.com/start/2e67cb5b-ec0c-4d03-984e-2eed84f55693';
+const APPSHEET_URL  = 'https://www.appsheet.com/start/2e67cb5b-ec0c-4d03-984e-2eed84f55693';
 
-// CORS 代理列表（按优先级尝试，增加容错）
+// CORS proxies con fallback (igual que el React original)
 const CORS_PROXIES = [
-  (url: string) => `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
-  (url: string) => `https://corsproxy.io/?${encodeURIComponent(url)}`,
-  (url: string) => url, // 最后尝试直连
+  url => `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
+  url => `https://corsproxy.io/?${encodeURIComponent(url)}`,
+  url => url,  // intento directo
 ];
+// ═══════════════════════════════════════════════════════════════
 
-interface User {
-  usuario: string;
-  password?: string;
-  nombre: string;
-  rol: string;
-  regional: string;
-  activo: string;
+// --- DOM refs ---
+const loginScreen   = document.getElementById('login-screen');
+const welcomeScreen = document.getElementById('welcome-screen');
+const inpUser       = document.getElementById('inp-user');
+const inpPass       = document.getElementById('inp-pass');
+const btnLogin      = document.getElementById('btn-login');
+const btnText       = document.getElementById('btn-text');
+const spinner       = document.getElementById('spinner');
+const alertError    = document.getElementById('alert-error');
+const alertInfo     = document.getElementById('alert-info');
+const errorText     = document.getElementById('error-text');
+const btnRetry      = document.getElementById('btn-retry');
+
+// --- Logo refs ---
+const logoUploader = document.getElementById('logo-uploader');
+const logoImg      = document.getElementById('logo-img');
+const welcomeLogo  = document.getElementById('w-logo');
+
+
+// --- 🎨 GESTIÓN DEL LOGO 🎨 ---
+function handleLogoUpload(event) {
+  const file = event.target.files[0];
+  if (file && file.type.startsWith('image/')) {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const imageUrl = e.target.result;
+      logoImg.src = imageUrl;
+      welcomeLogo.src = imageUrl;
+      // Guardar en localStorage para persistencia
+      localStorage.setItem('custom_logo_url', imageUrl);
+    };
+    reader.readAsDataURL(file);
+  }
 }
 
-const Logo = ({ className, src }: { className?: string; src?: string | null }) => (
-  <img
-    src={src || "https://www.jardinesdelrenacer.com/wp-content/uploads/2021/04/Logo-Jardines-del-Renacer-300x300.png"}
-    alt="Logo Jardines del Renacer"
-    className={`${className} object-contain drop-shadow-sm`}
-    referrerPolicy="no-referrer"
-    onError={(e) => {
-      e.currentTarget.src = "https://placehold.co/200x200/1e4fa3/white?text=JR";
-    }}
-  />
-);
+function loadCustomLogo() {
+  const savedLogo = localStorage.getItem('custom_logo_url');
+  if (savedLogo) {
+    logoImg.src = savedLogo;
+    welcomeLogo.src = savedLogo;
+  }
+}
 
-/**
- * 带重试和 CORS 代理回退的 fetch
- */
-async function fetchWithFallback(url: string): Promise<string> {
-  let lastError: Error | null = null;
+logoUploader.addEventListener('change', handleLogoUpload);
 
+
+// --- Toggle contraseña ---
+document.getElementById('eye-btn').addEventListener('click', () => {
+  const shown = inpPass.type === 'text';
+  inpPass.type = shown ? 'password' : 'text';
+  document.getElementById('eye-icon').innerHTML = shown
+    ? '<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>'
+    : '<path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/><path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/><line x1="1" y1="1" x2="23" y2="23"/>';
+});
+
+// --- Alerts ---
+function showError(msg) {
+  alertInfo.style.display = 'none';
+  errorText.textContent = msg;
+  alertError.style.display = 'flex';
+}
+function showInfo(msg) {
+  alertError.style.display = 'none';
+  document.getElementById('info-text').textContent = msg;
+  alertInfo.style.display = 'flex';
+}
+function hideAlerts() {
+  alertError.style.display = 'none';
+  alertInfo.style.display  = 'none';
+}
+
+// --- Loading state ---
+function setLoading(on) {
+  btnLogin.disabled     = on;
+  spinner.style.display = on ? 'block' : 'none';
+  btnText.textContent   = on ? 'Verificando…' : 'Ingresar al Portal';
+}
+
+// --- fetchWithFallback (mismo algoritmo del React) ---
+async function fetchWithFallback(url) {
+  let lastError = null;
   for (const proxyFn of CORS_PROXIES) {
-    const targetUrl = proxyFn(url);
+    const target = proxyFn(url);
     try {
       const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 12000); // 12秒超时
-
-      const response = await fetch(targetUrl, {
+      const timeout = setTimeout(() => controller.abort(), 12000);
+      const resp = await fetch(target, {
         signal: controller.signal,
-        headers: {
-          'Accept': 'text/csv,text/plain,*/*',
-        },
+        headers: { 'Accept': 'text/csv,text/plain,*/*' }
       });
       clearTimeout(timeout);
-
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-      }
-
-      const text = await response.text();
-
-      // 验证返回内容确实是 CSV（不是 HTML 错误页）
+      if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+      const text = await resp.text();
       if (text.trim().startsWith('<!DOCTYPE') || text.trim().startsWith('<html')) {
-        throw new Error('La respuesta no es un CSV válido (posiblemente página de error de Google).');
+        throw new Error('La respuesta no es un CSV válido.');
       }
-
       return text;
-    } catch (err) {
-      lastError = err instanceof Error ? err : new Error(String(err));
-      console.warn(`[Fetch] Falló con ${targetUrl.substring(0, 60)}... → ${lastError.message}`);
-      // 继续尝试下一个代理
+    } catch(err) {
+      lastError = err;
+      console.warn('[Fetch] falló:', target.substring(0,60), '→', err.message);
     }
   }
-
   throw lastError || new Error('Todos los métodos de conexión fallaron.');
 }
 
-export default function App() {
-  const [username, setUsername] = useState('');
-  const [password, setPassword] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
-  const [rememberMe, setRememberMe] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState(false);
-  const [userData, setUserData] = useState<User | null>(null);
-  const [customLogo, setCustomLogo] = useState<string | null>(null);
-  const [retryCount, setRetryCount] = useState(0);
+// --- Mostrar pantalla de bienvenida ---
+function showWelcome(user) {
+  loginScreen.classList.add('hidden');
+  welcomeScreen.classList.remove('hidden');
 
-  useEffect(() => {
-    const savedLogo = localStorage.getItem('jr_custom_logo');
-    if (savedLogo) setCustomLogo(savedLogo);
+  document.getElementById('w-name').textContent = user.nombre   || user.usuario || '—';
+  document.getElementById('w-role').textContent = user.rol      || 'Usuario';
 
-    const savedUser = localStorage.getItem('jr_user') || sessionStorage.getItem('jr_user');
-    if (savedUser) {
-      try {
-        const u = JSON.parse(savedUser);
-        setUserData(u);
-        setSuccess(true);
-      } catch (e) {
-        console.error('Error parsing saved session', e);
-      }
-    }
-  }, []);
+  const regEl  = document.getElementById('w-regional');
+  const regTxt = document.getElementById('w-regional-text');
+  if (user.regional) {
+    regTxt.textContent = 'Sede Regional: ' + user.regional;
+    regEl.style.display = 'flex';
+  }
 
-  const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        const base64 = reader.result as string;
-        setCustomLogo(base64);
-        localStorage.setItem('jr_custom_logo', base64);
-      };
-      reader.readAsDataURL(file);
-    }
-  };
+  document.getElementById('btn-open-app').href = APPSHEET_URL;
 
-  const handleLogin = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!username || !password) {
-      setError('Por favor completa usuario y contraseña.');
+  // Redirigir en 3 s
+  setTimeout(() => { window.location.href = APPSHEET_URL; }, 3000);
+}
+
+// --- Login ---
+async function handleLogin() {
+  const usuario  = inpUser.value.trim();
+  const password = inpPass.value.trim();
+
+  if (!usuario || !password) {
+    showError('Por favor completa usuario y contraseña.');
+    return;
+  }
+
+  hideAlerts();
+  showInfo('Verificando credenciales…');
+  setLoading(true);
+
+  try {
+    const csvText = await fetchWithFallback(SHEET_CSV_URL);
+
+    // Papa Parse
+    const result = Papa.parse(csvText, { header: true, skipEmptyLines: true });
+
+    const users = result.data.map(u => {
+      const norm = {};
+      Object.keys(u).forEach(k => { norm[k.trim().toLowerCase()] = String(u[k] ?? '').trim(); });
+      return norm;
+    });
+
+    const match = users.find(u =>
+      u.usuario?.toLowerCase() === usuario.toLowerCase() &&
+      u.password === password &&
+      u.activo?.toUpperCase() === 'SI'
+    );
+
+    if (!match) {
+      showError('Usuario o contraseña incorrectos, o cuenta inactiva.');
+      setLoading(false);
       return;
     }
 
-    setError(null);
-    setLoading(true);
+    // Guardar sesión
+    const storage = document.getElementById('remember').checked ? localStorage : sessionStorage;
+    storage.setItem('jr_user', JSON.stringify(match));
 
-    try {
-      const csvText = await fetchWithFallback(SHEET_CSV_URL);
-      const result = Papa.parse<User>(csvText, { header: true, skipEmptyLines: true });
+    hideAlerts();
+    setLoading(false);
+    showWelcome(match);
 
-      if (result.errors.length > 0) {
-        console.warn('[CSV Parse] Warnings:', result.errors);
-      }
-
-      const users = result.data.map(u => {
-        const normalized: any = {};
-        Object.keys(u).forEach(key => {
-          normalized[key.trim().toLowerCase()] = String((u as any)[key] ?? '').trim();
-        });
-        return normalized as User;
-      });
-
-      const match = users.find(u =>
-        u.usuario?.toLowerCase() === username.toLowerCase() &&
-        u.password === password &&
-        u.activo?.toUpperCase() === 'SI'
-      );
-
-      if (!match) {
-        setError('Usuario o contraseña incorrectos, o cuenta inactiva.');
-        setLoading(false);
-        return;
-      }
-
-      const storage = rememberMe ? localStorage : sessionStorage;
-      storage.setItem('jr_user', JSON.stringify(match));
-
-      setUserData(match);
-      setSuccess(true);
-      setLoading(false);
-
-      setTimeout(() => {
-        window.location.href = APPSHEET_URL;
-      }, 2500);
-
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Error desconocido';
-      setError(`Error al conectar: ${msg}`);
-      setLoading(false);
-    }
-  };
-
-  const handleRetry = () => {
-    setError(null);
-    setRetryCount(prev => prev + 1);
-  };
-
-  return (
-    <div className="flex items-center justify-center min-h-screen p-4 bg-slate-50">
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.6, ease: [0.22, 0.68, 0, 1.2] }}
-        className="flex flex-col md:flex-row w-full max-w-[920px] min-h-[540px] bg-white rounded-[24px] overflow-hidden shadow-[0_32px_120px_rgba(30,79,163,0.12),0_4px_16px_rgba(0,0,0,0.02)] border border-slate-200 relative"
-      >
-        {/* Left Panel */}
-        <div className="hidden md:flex md:w-[45%] bg-jr-dark p-12 flex-col items-center justify-center relative overflow-hidden text-center">
-          <div className="absolute w-[500px] h-[500px] rounded-full border border-white/5 -bottom-[150px] -right-[150px] bg-white/5 blur-3xl" />
-          <div className="absolute w-[300px] h-[300px] rounded-full border border-white/5 -top-[100px] -left-[100px] bg-white/5 blur-2xl" />
-          <div className="absolute inset-0 z-0 bg-[radial-gradient(ellipse_80%_60%_at_50%_0%,rgba(255,255,255,0.08)_0%,transparent_70%)] pointer-events-none" />
-
-          <div className="relative z-10 flex flex-col items-center">
-            {success && userData?.rol?.toLowerCase().includes('admin') ? (
-              <label className="cursor-pointer group relative">
-                <input type="file" accept="image/*" className="hidden" onChange={handleLogoUpload} />
-                <motion.div
-                  initial={{ opacity: 0, scale: 0.9 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  whileHover={{ scale: 1.05 }}
-                  transition={{ delay: 0.2, duration: 0.8, type: "spring", stiffness: 260, damping: 20 }}
-                  className="bg-white p-5 rounded-full mb-8 shadow-2xl border border-white/20 relative"
-                >
-                  <Logo className="w-[110px] h-[110px]" src={customLogo} />
-                  <div className="absolute inset-0 rounded-full bg-jr-dark/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                    <span className="text-white text-[10px] font-bold uppercase tracking-wider">Cambiar Logo</span>
-                  </div>
-                </motion.div>
-              </label>
-            ) : (
-              <motion.div
-                initial={{ opacity: 0, scale: 0.9 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ delay: 0.2, duration: 0.8 }}
-                className="bg-white p-5 rounded-full mb-8 shadow-2xl border border-white/20"
-              >
-                <Logo className="w-[110px] h-[110px]" src={customLogo} />
-              </motion.div>
-            )}
-
-            <h2 className="font-serif text-3xl text-white mb-2 tracking-wide font-medium drop-shadow-sm">
-              Jardines del Renacer
-            </h2>
-            <p className="text-[10px] uppercase tracking-[6px] text-white/60 font-bold mb-8">
-              Prestación de Servicios J.R
-            </p>
-
-            <div className="w-12 h-[2px] bg-white/30 mx-auto mb-8 rounded-full" />
-
-            <p className="font-serif italic text-base text-white/50 leading-relaxed max-w-[280px] font-light">
-              "Acompañamos a las familias con dignidad y respeto."
-            </p>
-          </div>
-        </div>
-
-        {/* Right Panel */}
-        <div className="flex-1 p-8 md:p-14 flex flex-col justify-center bg-white">
-          <AnimatePresence mode="wait">
-            {!success ? (
-              <motion.div
-                key={`login-${retryCount}`}
-                initial={{ opacity: 0, x: 20 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -20 }}
-                transition={{ duration: 0.4 }}
-              >
-                <div className="mb-10">
-                  <h1 className="font-serif text-[2.5rem] leading-none mb-2 text-slate-900">
-                    Bienvenido<span className="text-jr-dark">.</span>
-                  </h1>
-                  <p className="text-sm font-light text-slate-400 tracking-wide">
-                    Ingresa tus credenciales para acceder al sistema
-                  </p>
-                </div>
-
-                {error && (
-                  <motion.div
-                    initial={{ opacity: 0, scale: 0.98 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    className="flex flex-col gap-3 p-4 mb-8 text-sm font-light rounded-xl bg-red-50 border border-red-100 text-red-600"
-                  >
-                    <div className="flex items-start gap-3">
-                      <AlertCircle size={18} className="mt-0.5 shrink-0" />
-                      <span>{error}</span>
-                    </div>
-                    {/* 诊断信息与重试按钮 */}
-                    <div className="flex items-center justify-between pl-7">
-                      <span className="text-[10px] text-red-400 font-medium">
-                        Verifica que el Sheet esté publicado públicamente
-                      </span>
-                      <button
-                        type="button"
-                        onClick={handleRetry}
-                        className="flex items-center gap-1.5 text-[11px] font-bold text-red-500 hover:text-red-700 transition-colors"
-                      >
-                        <RefreshCw size={12} />
-                        Reintentar
-                      </button>
-                    </div>
-                  </motion.div>
-                )}
-
-                <form onSubmit={handleLogin} className="space-y-6">
-                  <div className="space-y-2">
-                    <label className="block text-[10px] font-bold tracking-[2px] uppercase text-slate-400">
-                      Usuario
-                    </label>
-                    <input
-                      type="text"
-                      id="inp-user"
-                      value={username}
-                      onChange={(e) => setUsername(e.target.value)}
-                      className="w-full h-12 bg-slate-50 border border-slate-200 rounded-xl px-4 text-sm font-light outline-none focus:ring-4 focus:ring-jr-dark/5 focus:border-jr-dark focus:bg-white transition-all placeholder:text-slate-300"
-                      placeholder="usuario"
-                      autoComplete="username"
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <label className="block text-[10px] font-bold tracking-[2px] uppercase text-slate-400">
-                      Contraseña
-                    </label>
-                    <div className="relative">
-                      <input
-                        type={showPassword ? "text" : "password"}
-                        id="inp-pass"
-                        value={password}
-                        onChange={(e) => setPassword(e.target.value)}
-                        className="w-full h-12 bg-slate-50 border border-slate-200 rounded-xl px-4 text-sm font-light outline-none focus:ring-4 focus:ring-jr-dark/5 focus:border-jr-dark focus:bg-white transition-all pr-12 placeholder:text-slate-300"
-                        placeholder="••••••••"
-                        autoComplete="current-password"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setShowPassword(!showPassword)}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 p-2 text-slate-300 hover:text-jr-dark transition-colors"
-                      >
-                        {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-                      </button>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center justify-between py-1">
-                    <label className="flex items-center gap-3 text-sm font-light text-slate-400 cursor-pointer select-none">
-                      <input
-                        type="checkbox"
-                        checked={rememberMe}
-                        onChange={(e) => setRememberMe(e.target.checked)}
-                        className="w-4 h-4 rounded-md border-slate-300 text-jr-dark focus:ring-jr-dark accent-jr-dark cursor-pointer"
-                      />
-                      Recordarme
-                    </label>
-                    <button type="button" className="text-sm font-medium text-jr-dark hover:underline decoration-1 underline-offset-4 transition-all">
-                      ¿Olvidaste tu contraseña?
-                    </button>
-                  </div>
-
-                  <button
-                    disabled={loading}
-                    className="w-full h-14 bg-jr-dark text-white rounded-xl flex items-center justify-center gap-4 text-sm font-bold uppercase tracking-[2px] hover:bg-jr-mid transition-all active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed shadow-xl shadow-jr-dark/20 mt-4"
-                  >
-                    {loading ? (
-                      <>
-                        <Loader2 className="animate-spin" size={20} />
-                        Verificando…
-                      </>
-                    ) : (
-                      'Ingresar al Portal'
-                    )}
-                  </button>
-                </form>
-
-                <div className="mt-12 flex flex-col items-center gap-4">
-                  <div className="w-12 h-[1px] bg-slate-100" />
-                  <p className="text-center text-[10px] font-medium text-slate-300 tracking-widest uppercase">
-                    Acceso Restringido &mdash; &copy; 2026 JR
-                  </p>
-                </div>
-              </motion.div>
-            ) : (
-              <motion.div
-                key="welcome-screen"
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="flex flex-col items-center justify-center text-center space-y-6"
-              >
-                <motion.div
-                  initial={{ scale: 0.8, opacity: 0 }}
-                  animate={{ scale: 1, opacity: 1 }}
-                  transition={{ delay: 0.2 }}
-                  className="w-20 h-20 rounded-full bg-slate-50 border border-slate-200 flex items-center justify-center overflow-hidden shadow-sm mb-2"
-                >
-                  <Logo className="w-14 h-14" src={customLogo} />
-                </motion.div>
-
-                <div>
-                  <h2 className="font-serif text-3xl text-slate-900 mb-2 font-medium">
-                    {userData?.nombre || 'Bienvenido'}
-                  </h2>
-                  <p className="text-[11px] font-bold tracking-[3px] uppercase text-slate-400">
-                    {userData?.rol || 'Usuario'}
-                  </p>
-                </div>
-
-                {userData?.regional && (
-                  <div className="flex items-center gap-2 px-4 py-1.5 bg-slate-50 rounded-full border border-slate-100">
-                    <span className="text-[0.82rem] font-medium text-jr-dark">
-                      Sede Regional: {userData.regional}
-                    </span>
-                  </div>
-                )}
-
-                <div className="pt-8 flex flex-col items-center gap-4 w-full">
-                  <p className="text-xs text-slate-400 font-light italic">Estableciendo conexión segura...</p>
-                  <a
-                    href={APPSHEET_URL}
-                    className="flex items-center justify-center gap-3 w-full max-w-[280px] py-4 bg-jr-dark text-white rounded-xl text-sm font-bold uppercase tracking-[2px] hover:bg-jr-mid transition-all shadow-xl shadow-jr-dark/20"
-                  >
-                    Abrir Aplicación
-                    <ExternalLink size={18} />
-                  </a>
-
-                  <button
-                    onClick={() => {
-                      localStorage.removeItem('jr_user');
-                      sessionStorage.removeItem('jr_user');
-                      setSuccess(false);
-                      setUserData(null);
-                    }}
-                    className="text-[11px] text-slate-300 hover:text-red-500 font-bold transition-colors uppercase tracking-[2px] mt-6"
-                  >
-                    Finalizar Sesión
-                  </button>
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </div>
-      </motion.div>
-    </div>
-  );
+  } catch(err) {
+    showError('Error al conectar: ' + (err.message || 'Error desconocido'));
+    setLoading(false);
+  }
 }
+
+// --- Reintentar ---
+btnRetry.addEventListener('click', () => {
+  hideAlerts();
+  handleLogin();
+});
+
+// --- Eventos ---
+btnLogin.addEventListener('click', handleLogin);
+inpPass.addEventListener('keydown', e => { if(e.key==='Enter') handleLogin(); });
+inpUser.addEventListener('keydown', e => { if(e.key==='Enter') inpPass.focus(); });
+
+// --- Cerrar sesión ---
+document.getElementById('btn-logout').addEventListener('click', () => {
+  localStorage.removeItem('jr_user');
+  sessionStorage.removeItem('jr_user');
+  welcomeScreen.classList.add('hidden');
+  loginScreen.classList.remove('hidden');
+  inpUser.value = '';
+  inpPass.value = '';
+});
+
+// --- Restaurar sesión y logo al cargar ---
+window.addEventListener('load', () => {
+  loadCustomLogo(); // Cargar logo guardado
+
+  const savedUser = sessionStorage.getItem('jr_user') || localStorage.getItem('jr_user');
+  if (savedUser) {
+    try {
+      showWelcome(JSON.parse(savedUser));
+    } catch(e) {
+      // Si hay un error en el JSON, limpiar y mostrar login
+      localStorage.removeItem('jr_user');
+      sessionStorage.removeItem('jr_user');
+    }
+  }
+});
+</script>
+</body>
+</html>
